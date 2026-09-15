@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Environment / secrets
+.env
+.env.*
+*.key
+*.pem
+
+# Data
+data/
+dataset/
+datasets/
+raw_data/
+internal_data/
+hospital_data/
+patient_data/
+
+# Models / weights
+checkpoints/
+checkpoint/
+weights/
+models/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# Generated outputs
+outputs/
+output/
+results/
+runs/
+wandb/
+logs/
+cache/
+
+# Medical images
+*.dcm
+*.nii
+*.nii.gz
+
+# OS
+.DS_Store
+Thumbs.db

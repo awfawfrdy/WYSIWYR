@@ -1,0 +1,69 @@
+{
+  "purpose": "Reviewer #2 full 2x2 factorial and USR reliability experiments",
+  "data": {
+    "train_pool_source": "PraNet common split if auto-downloaded",
+    "train_dataset_dir": "/root/autodl-tmp/wysiwyr_real/data/TrainDataset",
+    "test_dataset_dir": "/root/autodl-tmp/wysiwyr_real/data/TestDataset",
+    "train_n": 870,
+    "val_n": 580,
+    "split_seed": 2023
+  },
+  "training_prompt_protocol": {
+    "source": "GT-derived bounding box with random outward jitter",
+    "gt_allowed": true,
+    "reason": "supervised training annotations",
+    "bbox_shift_at_1024": 20
+  },
+  "test_prompt_protocol": {
+    "gt_box_used": false,
+    "stage_1": "full-image box prompt -> coarse probability/mask",
+    "stage_2": "derive tight box from coarse predicted mask -> refined prediction",
+    "usr": "T prediction-derived box perturbations around coarse-mask box"
+  },
+  "optimizer": "AdamW",
+  "scheduler": "CosineAnnealingLR",
+  "lr": 0.0001,
+  "weight_decay": 0.01,
+  "epochs_requested": 50,
+  "batch_size": 1,
+  "amp": true,
+  "freeze_image_encoder": false,
+  "note_on_recovered_hyperparameters": "The lost original code and undisclosed numeric main-training hyperparameters cannot be recovered from the manuscript. These are revision reproducibility settings and must be reported as such if used for new revision experiments.",
+  "abloss": {
+    "boundary_kernel_size": 7,
+    "lambda_fp": 0.8,
+    "lambda_fn": 0.3,
+    "alpha": 2.0,
+    "beta": 1.0,
+    "gamma": 1.0,
+    "delta": 0.3,
+    "eps": 1e-06,
+    "dice_smooth": 1e-06
+  },
+  "usr": {
+    "num_passes": 8,
+    "jitter_px_ref": 10,
+    "vote_threshold": 0.5,
+    "inner_kernel_ref": 3,
+    "outer_kernel_ref": 9,
+    "prune_prob_threshold": 0.5,
+    "prune_uncertainty_threshold": 0.35,
+    "local_support_threshold": 0.8,
+    "repair_prob_threshold": 0.01,
+    "max_area_drop": 0.35,
+    "max_area_rise": 0.25,
+    "max_component_increase": 1,
+    "max_hole_increase": 1,
+    "min_lcc_ratio": 0.5,
+    "min_object_area_ref": 100,
+    "max_hole_area_ref": 100,
+    "eps": 1e-08,
+    "seed": 2023,
+    "reference_resolution": 224,
+    "scale_spatial_params": true,
+    "aggregation_mode": "soft",
+    "normalization_mode": "none",
+    "initial_prompt_mode": "full_image_box",
+    "binary_threshold_per_pass": 0.5
+  }
+}

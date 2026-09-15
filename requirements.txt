@@ -1,0 +1,25 @@
+# WYSIWYR — Python dependencies
+# Tested on the development server with Python 3.10/3.13 + CUDA.
+
+# Scientific stack
+numpy
+scipy
+scikit-learn
+opencv-python
+
+# Deep learning
+torch
+torchvision
+
+# Vision-language report generation backends (manuscript uses Qwen2.5-VL)
+transformers
+accelerate
+qwen-vl-utils
+
+# Utilities (dataset bootstrap helpers)
+gdown
+
+# NOTE — external segmentation backbone is NOT vendored in this repository.
+# Install MedSAM separately to provide the `segment_anything` package:
+#   git clone https://github.com/bowang-lab/MedSAM && pip install -e MedSAM
+# MedSAM ViT-B checkpoint: medsam_vit_b.pth (see the MedSAM repository).
