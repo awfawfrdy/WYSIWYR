@@ -26,9 +26,13 @@ intentionally **not** redistributed.
 ├── score_human_validation.py             # Checker human-validation scoring
 ├── configs/
 │   ├── protocol.json                     # Fixed protocol & hyperparameters
-│   └── checker_rulebook_v3.json          # Frozen rules: priority / negation / rewrites / lexicons
+│   ├── checker_rulebook_v3.json          # Frozen rules: priority / negation / rewrite templates
+│   ├── lexicons.json                     # Checker lexicons (forbidden / safety / boundary / calibration)
+│   └── prompt_templates.json             # Deterministic SEIG evidence prompt (Table 5)
 ├── manifests/
 │   └── split_seed_2023.csv               # Fixed train/val split manifest (870 / 580)
+├── tools/
+│   └── export_checker_spec.py            # Regenerates lexicons.json + prompt_templates.json from seig.py
 ├── requirements.txt
 └── .gitignore
 ```
@@ -129,21 +133,26 @@ python score_human_validation.py --human <completed_blinded_csv> \
     --key <blinded_key_csv> --output <scores.json>
 ```
 
-### Frozen Checker v3 rules
+### Frozen Checker v3 specification (rules / lexicons / negation / priority / rewrites / prompts)
 
-The complete rules used in the manuscript are materialised in
-**`configs/checker_rulebook_v3.json`**:
-- **rule priority** — R1 treatment/clinical recommendation, R2 diagnostic/pathology
-  claim, R3 unsupported fine-grained anatomy, R4 lesion-specific claim without valid
-  lesion evidence, R5 boundary calibration, R0 supported/keep;
-- **negation policy** — safe epistemic/disclaimer phrasing vs. unsafe negative
-  diagnostic conclusions;
-- **deterministic rewrite templates** — anatomy generalisation, boundary-caution
-  rewrite, prohibited-claim removal + single conservative safety note.
+The complete, frozen specification used in the manuscript is materialised as plain JSON
+so it can be reviewed without reading code:
 
-The executable rule/lexicon engine (forbidden / synonym lexicons, negation handling,
-rewrite application) lives in `seig.py`. The v3 rules are **frozen** before the
-independent human validation and must not be modified afterwards.
+| Artefact | Contents |
+|---|---|
+| `configs/checker_rulebook_v3.json` | rule **priority** (R1–R5 / R0), **negation policy**, deterministic **rewrite templates**, claim decomposition, freeze policy |
+| `configs/lexicons.json` | the 14 checker **lexicons** — forbidden diagnosis / procedure / recommendation / anatomy vocabulary, safety-disclaimer exemptions, boundary descriptors, hedging and certainty lexicons |
+| `configs/prompt_templates.json` | the deterministic **SEIG evidence prompt** used for report generation (Table 5), including wording rules and the five-section output format |
+
+All three are generated from the executable source of truth (`seig.py` —
+`SEIG.checker_rulebook()` and `SEIG.render_prompt`) via `tools/export_checker_spec.py`:
+
+```bash
+python tools/export_checker_spec.py
+```
+
+The v3 rules are **frozen** before the independent human validation and must not be
+modified afterwards.
 
 ## Reproducibility notes
 
