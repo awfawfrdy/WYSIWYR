@@ -25,6 +25,9 @@ with p_bar = GT and uncertainty = 0. This intentionally represents perfect segme
 confidence and is never presented as a deployable setting.
 """
 from __future__ import annotations
+import os
+DATA_ROOT = os.environ.get("WYSIWYR_DATA_ROOT", ".")
+
 
 import argparse
 import csv
@@ -470,8 +473,8 @@ def preflight(root: Path, model_path: Path, datasets: List[str]) -> Dict[str, An
 
 def parse_args():
     p = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument("--root", default="/root/autodl-tmp/wysiwyr_real")
-    p.add_argument("--model", default="/root/autodl-tmp/models/Qwen2.5-VL-3B-Instruct")
+    p.add_argument("--root", default=DATA_ROOT + "/wysiwyr_real")
+    p.add_argument("--model", default=DATA_ROOT + "/models/Qwen2.5-VL-3B-Instruct")
     p.add_argument("--output", default="")
     p.add_argument("--datasets", default=",".join(DATASETS_DEFAULT))
     p.add_argument("--seed", type=int, default=2023)
@@ -585,7 +588,7 @@ def main():
     })
 
     if not args.no_package and not args.smoke:
-        zip_base = Path("/root/autodl-tmp/stage6_results_for_review")
+        zip_base = Path(DATA_ROOT + "/stage6_results_for_review")
         if zip_base.with_suffix(".zip").exists(): zip_base.with_suffix(".zip").unlink()
         shutil.make_archive(str(zip_base), "zip", out_root)
         log(f"Packaged results: {zip_base.with_suffix('.zip')}")
@@ -593,7 +596,7 @@ def main():
     log("\n" + "="*80)
     log("STAGE6 COMPLETE")
     log(f"Results: {out_root}")
-    if not args.no_package and not args.smoke: log("Review ZIP: /root/autodl-tmp/stage6_results_for_review.zip")
+    if not args.no_package and not args.smoke: log("Review ZIP: <DATA_ROOT>/stage6_results_for_review.zip")
     log("="*80)
 
 

@@ -1,4 +1,7 @@
 from __future__ import annotations
+import os
+DATA_ROOT = os.environ.get("WYSIWYR_DATA_ROOT", ".")
+
 
 from dataclasses import asdict, dataclass, field
 import json

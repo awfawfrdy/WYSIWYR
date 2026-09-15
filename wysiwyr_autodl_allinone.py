@@ -26,7 +26,11 @@ This file intentionally does NOT embed MedSAM weights or a specific dataset load
 Pass lightweight predictor callables from your existing training/inference code.
 """
 
+
 from __future__ import annotations
+
+import os
+DATA_ROOT = os.environ.get("WYSIWYR_DATA_ROOT", ".")
 
 import argparse
 import json

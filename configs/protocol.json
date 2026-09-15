@@ -2,8 +2,8 @@
   "purpose": "Reviewer #2 full 2x2 factorial and USR reliability experiments",
   "data": {
     "train_pool_source": "PraNet common split if auto-downloaded",
-    "train_dataset_dir": "/root/autodl-tmp/wysiwyr_real/data/TrainDataset",
-    "test_dataset_dir": "/root/autodl-tmp/wysiwyr_real/data/TestDataset",
+    "train_dataset_dir": "${WYSIWYR_DATA_ROOT}/wysiwyr_real/data/TrainDataset",
+    "test_dataset_dir": "${WYSIWYR_DATA_ROOT}/wysiwyr_real/data/TestDataset",
     "train_n": 870,
     "val_n": 580,
     "split_seed": 2023

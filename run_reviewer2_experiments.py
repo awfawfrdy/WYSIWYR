@@ -32,11 +32,11 @@ Folder contract
 Each folder may contain PNG/JPG/TIF/BMP masks or .npy/.npz arrays. Files are paired
 by filename stem. Example:
 
-  /root/autodl-tmp/exp/gt/001.png
-  /root/autodl-tmp/exp/medsam/001.png
-  /root/autodl-tmp/exp/abloss/001.png
-  /root/autodl-tmp/exp/usr/001.png
-  /root/autodl-tmp/exp/both/001.png
+  <DATA_ROOT>/exp/gt/001.png
+  <DATA_ROOT>/exp/medsam/001.png
+  <DATA_ROOT>/exp/abloss/001.png
+  <DATA_ROOT>/exp/usr/001.png
+  <DATA_ROOT>/exp/both/001.png
 
 Probability/uncertainty maps are optional and use the same case stems.
 
@@ -47,7 +47,11 @@ For HD95/ASSD, empty-vs-nonempty cases are retained as inf in per-case output an
 excluded from mean/SD summaries, with the number of excluded non-finite cases reported.
 """
 
+
 from __future__ import annotations
+
+import os
+DATA_ROOT = os.environ.get("WYSIWYR_DATA_ROOT", ".")
 
 import argparse
 import csv

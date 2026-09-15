@@ -5,7 +5,7 @@ WYSIWYR real MedSAM 2x2 factorial pipeline for AutoDL.
 
 One-command goal
 ================
-    cd /root/autodl-tmp
+    cd <DATA_ROOT>
     python run_real_medsam_2x2.py --auto
 
 The script can, in one run:
@@ -39,7 +39,11 @@ Scientific/reproducibility notes
 This script does not fabricate any experimental result.
 """
 
+
 from __future__ import annotations
+
+import os
+DATA_ROOT = os.environ.get("WYSIWYR_DATA_ROOT", ".")
 
 import argparse
 import contextlib
@@ -229,7 +233,7 @@ def ensure_medsam_checkpoint(path: Path) -> Path:
 
     # Auto-detect a manually uploaded checkpoint in the AutoDL project root.
     # This lets the user upload medsam_vit_b.pth through Jupyter without any mv/cp command.
-    local_candidates = [Path.cwd() / "medsam_vit_b.pth", Path("/root/autodl-tmp/medsam_vit_b.pth")]
+    local_candidates = [Path.cwd() / "medsam_vit_b.pth", Path(DATA_ROOT + "/medsam_vit_b.pth")]
     for candidate in local_candidates:
         try:
             if candidate.resolve() == path.resolve():
@@ -355,7 +359,7 @@ def _find_named_dir(root: Path, name: str) -> Optional[Path]:
 def _pick_latest(patterns: Sequence[str]) -> Optional[Path]:
     hits: List[Path] = []
     for pat in patterns:
-        hits.extend(Path("/root/autodl-tmp").glob(pat))
+        hits.extend(Path(DATA_ROOT + "").glob(pat))
     hits = [p for p in hits if p.is_file() and p.stat().st_size > 0]
     if not hits:
         return None
@@ -400,7 +404,7 @@ def ensure_public_data(data_root: Path, downloads: Path, test_rar: Optional[Path
     """Return TrainDataset/TestDataset, preferring LOCAL files before any network access.
 
     Local-first protocol for this revision:
-      - training: /root/autodl-tmp/TrainDataset*.zip (manual upload) or downloads/TrainDataset.zip
+      - training: <DATA_ROOT>/TrainDataset*.zip (manual upload) or downloads/TrainDataset.zip
       - testing:  the user's local tumor_30.rar bundle if it contains TestDataset/
       - network is used only as a last fallback.
     """
@@ -1209,9 +1213,9 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument("--auto", action="store_true", help="Setup/download + train + infer + analyze in one run")
     p.add_argument("--prepare-only", action="store_true", help="Only setup/download/audit; do not train")
-    p.add_argument("--root", default="/root/autodl-tmp/wysiwyr_real", help="Persistent work/output directory")
+    p.add_argument("--root", default=DATA_ROOT + "/wysiwyr_real", help="Persistent work/output directory")
     p.add_argument("--data-root", default="", help="Existing data root; default <root>/data")
-    p.add_argument("--test-rar", default="/root/autodl-tmp/tumor_30.rar", help="Local RAR bundle that already contains TestDataset/*")
+    p.add_argument("--test-rar", default=DATA_ROOT + "/tumor_30.rar", help="Local RAR bundle that already contains TestDataset/*")
     p.add_argument("--medsam-checkpoint", default="", help="Existing medsam_vit_b.pth; otherwise auto-download with Google Drive/Hugging Face/Zenodo fallbacks")
     p.add_argument("--seed", type=int, default=2023, help="Revision reproducibility seed (numeric original was not disclosed)")
     p.add_argument("--epochs", type=int, default=50, help="Revision training cap; early stopping is enabled")

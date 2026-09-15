@@ -1,0 +1,30 @@
+{
+  "version": "3.0-frozen-reviewer-grade",
+  "claim_decomposition": "Markdown-aware line parsing, numeric-only marker removal, then sentence-final punctuation splitting",
+  "priority": [
+    "R1 clinical/treatment recommendation",
+    "R2 diagnostic/pathology claim",
+    "R3 unsupported fine-grained anatomy",
+    "R4 lesion-specific claim without valid lesion evidence",
+    "R5 boundary calibration under moderate/high boundary uncertainty",
+    "R0 supported/keep"
+  ],
+  "negation_policy": {
+    "safe": [
+      "epistemic disclaimers such as 'malignancy cannot be inferred'",
+      "treatment-decision disclaimers such as 'treatment decisions cannot be inferred'",
+      "anatomy disclaimers that explicitly state a subsite cannot be determined"
+    ],
+    "not_safe": [
+      "negative diagnostic conclusions such as 'no indication of malignancy'",
+      "positive recommendations hedged with may/might/possibly"
+    ]
+  },
+  "rewrite_templates": {
+    "unsupported_anatomy": "replace fine-grained subsite with 'the observed endoscopic field'",
+    "boundary_calibration": "The lesion morphology is described as <shape>; the boundary appears <status> and should be interpreted cautiously because boundary uncertainty is <level>.",
+    "prohibited_diagnosis_or_treatment": "remove claim; append conservative safety note once"
+  },
+  "idempotence_requirement": "verify(R*) must introduce zero new rule violations and leave text unchanged",
+  "freeze_policy": "v3 rules are frozen before independent human validation; the prior v2 400-claim audit sample is treated as development-only and excluded from the final validation sample"
+}
