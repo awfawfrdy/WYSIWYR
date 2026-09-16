@@ -79,10 +79,30 @@ not modified afterwards. `tools/export_checker_spec.py` regenerates the JSON spe
 
 ## Cross-MLLM evaluation
 
-`stage8_multimllm.py` implements Qwen2.5-VL-3B, InternVL2.5-2B and MiniCPM-V-2.6 backends with
-deterministic decoding. **HuatuoGPT-Vision is reported in the manuscript but its adapter is not
-present in this release** (see "Reproducibility gaps" below). Model checkpoints are not
-redistributed and must be obtained from their original providers.
+`stage8_multimllm.py` implements Qwen2.5-VL-3B, InternVL2.5-2B, MiniCPM-V-2.6 and
+HuatuoGPT-Vision backends with deterministic decoding (greedy; `do_sample=False`).
+Model checkpoints are not redistributed and must be obtained from their original providers.
+
+The HuatuoGPT-Vision backend uses the explicit model identifier
+`FreedomIntelligence/HuatuoGPT-Vision-7B-Qwen2.5VL` (HuggingFace). Example:
+
+    python stage8_multimllm.py --backend huatuo \
+      --model "$WYSIWYR_DATA_ROOT/models/HuatuoGPT-Vision-7B-Qwen2.5VL" \
+      --stage7 "$WYSIWYR_DATA_ROOT/wysiwyr_real/stage7_seig_controls" \
+      --output "$WYSIWYR_DATA_ROOT/wysiwyr_real/stage8_multimllm" \
+      --max-new-tokens 512
+
+Add `--smoke` for a 1-case-per-dataset smoke run (Image-only / SEIG-only / Image + SEIG /
+mismatched SEIG); omit it for the full cross-MLLM evaluation.
+
+**Provenance.** The historical HuatuoGPT-Vision model-specific adapter that generated the
+manuscript Table-30 numbers was **not retained**. The adapter released here is provided as a
+**current reproducibility interface** only: it reuses the same Stage-8 image loading, SEIG
+evidence, structured prompt template, frozen Checker-v3 and output schema, and adds only the
+Huatuo-specific loading/inference interface. It has been **smoke-tested** (model loads; image
+input is accepted; the Image-only and SEIG-conditioned conditions both produce valid text; output
+files follow the repository schema). It should **not** be interpreted as the archived code that
+originally produced the reported Table-30 values.
 
 ## Statistical analysis
 
@@ -131,10 +151,11 @@ python checker_v3_reaudit.py --source "$WYSIWYR_DATA_ROOT/wysiwyr_real/stage6_se
 - SEIG / Checker rules are **deterministic and frozen**.
 - MLLMs are **frozen** and use **deterministic decoding** in the main experiments.
 
-## Reproducibility gaps
+## Reproducibility notes
 
-- **HuatuoGPT-Vision**: reported in the manuscript, but no adapter exists in the released code;
-  reproduce Qwen2.5-VL-3B / InternVL2.5-2B / MiniCPM-V-2.6 only.
+The HuatuoGPT-Vision cross-MLLM adapter is now included as a current reproducibility interface
+(see "Cross-MLLM evaluation"). The historical adapter used to generate the manuscript Table-30
+HuatuoGPT-Vision numbers was not retained and is not claimed to be reproduced here.
 
 ## License
 

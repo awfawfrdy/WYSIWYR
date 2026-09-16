@@ -146,6 +146,51 @@ def gen_minicpm(model,tok,prompt,image_path,max_new_tokens):
     return txt,dt,ntok
 
 
+# ---------- HuatuoGPT-Vision adapter ----------
+# Current reproducibility interface for the HuatuoGPT-Vision cross-MLLM condition.
+# The historical model-specific adapter that generated the manuscript Table-30
+# HuatuoGPT-Vision numbers was NOT retained. This adapter is provided as a current
+# reproducibility interface only; it reuses the same Stage-8 image loading, SEIG
+# evidence, structured prompt template, frozen checker and output schema, and only
+# adds the Huatuo-specific loading/inference interface.
+# Explicit model identifier (HuggingFace): see HUATUO_MODEL_ID below.
+HUATUO_MODEL_ID="FreedomIntelligence/HuatuoGPT-Vision-7B-Qwen2.5VL"
+HUATUO_MAX_NEW_TOKENS=512
+
+def load_huatuo(model_path):
+    from transformers import Qwen2_5_VLForConditionalGeneration,AutoProcessor
+    log("Loading frozen HuatuoGPT-Vision (Qwen2.5-VL architecture) ...")
+    m=Qwen2_5_VLForConditionalGeneration.from_pretrained(str(model_path),dtype=torch.bfloat16,device_map="auto")
+    m.eval(); p=AutoProcessor.from_pretrained(str(model_path))
+    try:
+        m.generation_config.temperature=None; m.generation_config.top_p=None; m.generation_config.top_k=None
+    except Exception: pass
+    return m,p
+
+def gen_huatuo(model,processor,prompt,image_path,max_new_tokens):
+    if image_path is not None:
+        from qwen_vl_utils import process_vision_info
+        messages=[{"role":"user","content":[{"type":"image","image":"file://"+str(image_path.resolve())},{"type":"text","text":prompt}]}]
+        text=processor.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
+        image_inputs,video_inputs=process_vision_info(messages)
+        inputs=processor(text=[text],images=image_inputs,videos=video_inputs,padding=True,return_tensors="pt")
+    else:
+        messages=[{"role":"user","content":[{"type":"text","text":prompt}]}]
+        text=processor.apply_chat_template(messages,tokenize=False,add_generation_prompt=True)
+        inputs=processor(text=[text],padding=True,return_tensors="pt")
+    inputs=inputs.to("cuda")
+    if torch.cuda.is_available(): torch.cuda.synchronize()
+    t0=time.perf_counter()
+    with torch.inference_mode(): out=model.generate(**inputs,max_new_tokens=max_new_tokens,do_sample=False,use_cache=True)
+    if torch.cuda.is_available(): torch.cuda.synchronize()
+    dt=time.perf_counter()-t0
+    trim=[o[len(i):] for i,o in zip(inputs.input_ids,out)]
+    txt=processor.batch_decode(trim,skip_special_tokens=True,clean_up_tokenization_spaces=False)[0].strip()
+    ntok=int(trim[0].numel())
+    del inputs,out,trim
+    return txt,dt,ntok
+
+
 def select_manifest(stage7_root,cases_per_dataset,seed,out):
     mf=out/"sample_manifest.csv"
     if mf.exists():
@@ -217,6 +262,7 @@ def import_qwen_reuse(stage7_root,out,manifest):
 def run_backend(backend,model_path,stage7_root,out,manifest,max_new_tokens):
     if backend=="internvl": model,tok=load_internvl(model_path); mk="internvl25_2b"; ml="InternVL2.5-2B"; gen=gen_internvl
     elif backend=="minicpm": model,tok=load_minicpm(model_path); mk="minicpmv26"; ml="MiniCPM-V-2.6"; gen=gen_minicpm
+    elif backend=="huatuo": model,tok=load_huatuo(model_path); mk="huatuogpt_vision_7b"; ml="HuatuoGPT-Vision"; gen=gen_huatuo
     else: raise ValueError(backend)
     seig=SEIG(SEIGConfig()); total=len(manifest)*4; done=0
     for ds,cid in manifest:
@@ -247,7 +293,7 @@ def main():
     ap=argparse.ArgumentParser()
     ap.add_argument("--stage7",default=DATA_ROOT + "/wysiwyr_real/stage7_seig_controls")
     ap.add_argument("--output",default=DATA_ROOT + "/wysiwyr_real/stage8_multimllm")
-    ap.add_argument("--backend",choices=["reuse-qwen","internvl","minicpm","aggregate"],required=True)
+    ap.add_argument("--backend",choices=["reuse-qwen","internvl","minicpm","huatuo","aggregate"],required=True)
     ap.add_argument("--model",default="")
     ap.add_argument("--cases-per-dataset",type=int,default=40)
     ap.add_argument("--seed",type=int,default=2023)
@@ -263,14 +309,15 @@ def main():
     manifest=select_manifest(s7,cpd,args.seed,out)
     log(f"Manifest cases: {len(manifest)} ({cpd}/dataset)")
     if args.backend=="reuse-qwen": import_qwen_reuse(s7,out,manifest)
-    elif args.backend in ("internvl","minicpm"):
+    elif args.backend in ("internvl","minicpm","huatuo"):
+        if args.backend=="huatuo": args.max_new_tokens=HUATUO_MAX_NEW_TOKENS
         mp=Path(args.model)
         if not mp.exists(): raise SystemExit(f"Missing model: {mp}")
         if not torch.cuda.is_available(): raise SystemExit("CUDA unavailable")
         run_backend(args.backend,mp,s7,out,manifest,args.max_new_tokens)
     elif args.backend=="aggregate": pass
     rows=aggregate(out)
-    write_json(out/"protocol_stage8.json",{"stage":"Stage8 Multi-MLLM robustness","seed":args.seed,"cases_per_dataset":cpd,"n_sample_cases":len(manifest),"conditions":LABELS,"qwen_source":"exact Stage7 reuse","additional_models":["InternVL2.5-2B","MiniCPM-V-2.6"],"decode":{"do_sample":False,"max_new_tokens":args.max_new_tokens},"checker":"frozen v3","note":"Reviewer-requested key SEIG controls repeated across multiple MLLMs; fixed stratified case sample shared across models."})
+    write_json(out/"protocol_stage8.json",{"stage":"Stage8 Multi-MLLM robustness","seed":args.seed,"cases_per_dataset":cpd,"n_sample_cases":len(manifest),"conditions":LABELS,"qwen_source":"exact Stage7 reuse","additional_models":["InternVL2.5-2B","MiniCPM-V-2.6","HuatuoGPT-Vision"],"decode":{"do_sample":False,"max_new_tokens":args.max_new_tokens},"checker":"frozen v3","note":"Reviewer-requested key SEIG controls repeated across multiple MLLMs; fixed stratified case sample shared across models."})
     log(f"Aggregated records now: {len(rows)}")
     if not args.smoke and args.backend=="aggregate":
         base=Path(DATA_ROOT + "/stage8_multimllm_results_for_review")
