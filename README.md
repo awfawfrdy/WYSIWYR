@@ -86,10 +86,11 @@ redistributed and must be obtained from their original providers.
 
 ## Statistical analysis
 
-`analysis/finalize_usr_failure_analysis.py` implements Benjamini-Hochberg FDR correction
-(`statsmodels.stats.multitest.multipletests(method="fdr_bh")`) over the reviewer-requested
-USR-failure mechanism tests. Segmentation-to-report Spearman associations are in
-`run_reviewer2_experiments.py`.
+The 18 prespecified segmentation-to-report association tests (3 settings x 6 associations,
+computed in `stage6_seig_mllm_end2end.py`) receive **joint Benjamini-Hochberg FDR correction**;
+raw Spearman p-values and BH-adjusted q-values are written to
+`segmentation_to_report_associations.csv`. `analysis/finalize_usr_failure_analysis.py` applies
+BH-FDR to the reviewer-requested USR-failure mechanism tests.
 
 ## Environment
 
@@ -134,9 +135,6 @@ python checker_v3_reaudit.py --source "$WYSIWYR_DATA_ROOT/wysiwyr_real/stage6_se
 
 - **HuatuoGPT-Vision**: reported in the manuscript, but no adapter exists in the released code;
   reproduce Qwen2.5-VL-3B / InternVL2.5-2B / MiniCPM-V-2.6 only.
-- **18 prespecified association tests**: the manuscript reports BH-FDR-adjusted q-values for 18
-  prespecified segmentation-to-report association tests; the released scripts implement BH-FDR
-  for the USR-failure mechanism tests and unadjusted Spearman associations separately.
 
 ## License
 

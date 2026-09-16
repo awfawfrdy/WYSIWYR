@@ -354,6 +354,8 @@ def stratified_bootstrap_delta(rows: List[Dict[str, Any]], metric: str, target: 
 
 
 def aggregate(out_root: Path, seed: int) -> None:
+    from scipy.stats import spearmanr
+    from statsmodels.stats.multitest import multipletests
     records = []
     for p in sorted((out_root / "cases").glob("*/*/*.json")):
         try:
@@ -423,6 +425,7 @@ def aggregate(out_root: Path, seed: int) -> None:
     by_case = defaultdict(dict)
     for r in records:
         if r["variant_key"] != "gt": by_case[(r["dataset"], r["case_id"])][r["variant_key"]] = r
+    delta_tests = []
     for target in ("abloss", "usr", "both"):
         drows = []
         for _, vv in by_case.items():
@@ -441,9 +444,28 @@ def aggregate(out_root: Path, seed: int) -> None:
             ("delta_dice", "delta_raw_violations"), ("delta_boundary_dice", "delta_raw_violations"),
             ("delta_hd95", "delta_raw_violations"), ("delta_boundary_dice", "delta_boundary_overconfidence"),
         ]:
-            associations.append({"scope": f"within_case_{target}_minus_baseline", "x": x, "y": y,
-                                 "spearman_rho": spearman((r[x] for r in drows), (r[y] for r in drows)), "n": len(drows),
-                                 "note": "within-case delta association relative to MedSAM baseline"})
+            xv = np.asarray([r[x] for r in drows], dtype=float)
+            yv = np.asarray([r[y] for r in drows], dtype=float)
+            ok = np.isfinite(xv) & np.isfinite(yv)
+            xv, yv = xv[ok], yv[ok]
+            if len(xv) >= 3 and np.any(xv != xv[0]) and np.any(yv != yv[0]):
+                rho, p = spearmanr(xv, yv)
+            else:
+                rho, p = float("nan"), float("nan")
+            delta_tests.append({"scope": f"within_case_{target}_minus_baseline", "x": x, "y": y,
+                                "spearman_rho": float(rho), "p_value": float(p), "n": int(len(xv)),
+                                "note": "within-case delta association relative to MedSAM baseline"})
+    ps = [r["p_value"] for r in delta_tests]
+    finite_idx = [i for i, p in enumerate(ps) if np.isfinite(p)]
+    if finite_idx:
+        _, q_vals, _, _ = multipletests([ps[i] for i in finite_idx], method="fdr_bh")
+        q_map = dict(zip(finite_idx, q_vals))
+        for i, r in enumerate(delta_tests):
+            r["q_value"] = float(q_map[i]) if i in q_map else float("nan")
+    else:
+        for r in delta_tests:
+            r["q_value"] = float("nan")
+    associations.extend(delta_tests)
     write_csv(out_root / "segmentation_to_report_associations.csv", associations)
 
     readme = f"""# WYSIWYR Stage 6 end-to-end mask-source -> SEIG -> Qwen2.5-VL results\n\nCompleted records: {len(records)}.\n\nPrimary conditions: MedSAM, MedSAM+ABLoss, MedSAM+USR, MedSAM+ABLoss+USR, GT-mask oracle.\n\n## Interpretation guardrails\n- All conditions use the same original image, the same SEIG implementation, the same Qwen2.5-VL checkpoint, and deterministic decoding.\n- The GT condition is an oracle upper-bound control with p_bar=GT and uncertainty=0; it is not deployable.\n- `raw_*` checker metrics quantify deterministic rule compliance of R0. They are **not** independent clinical-validity labels.\n- `checked_*` metrics concern R* after the same deterministic checker and therefore should not be used as independent evidence of clinical correctness.\n- Independent human/evaluator validation of the checker is a separate reviewer-requested experiment and remains necessary.\n\n## Main files\n- `case_level_results.csv`: one row per case x mask source.\n- `summary_by_dataset_variant.csv`: dataset-level summary.\n- `summary_macro_variant.csv`: equal-dataset macro summary.\n- `paired_report_contrasts_vs_medsam.csv`: paired, dataset-stratified bootstrap contrasts.\n- `segmentation_to_report_associations.csv`: descriptive and within-case delta propagation analyses.\n- `cases/<dataset>/<case>/<variant>.json`: full SEIG evidence, prompt, raw report R0, checked report R*, and audit log.\n"""
