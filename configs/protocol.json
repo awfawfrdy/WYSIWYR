@@ -1,12 +1,51 @@
 {
-  "purpose": "Reviewer #2 full 2x2 factorial and USR reliability experiments",
+  "purpose": "WYSIWYR final revised protocol: 2x2 factorial, USR reliability, prompt-free coarse proposer, SEIG/checker, cross-MLLM, reviewer-requested analyses",
   "data": {
-    "train_pool_source": "PraNet common split if auto-downloaded",
     "train_dataset_dir": "${WYSIWYR_DATA_ROOT}/wysiwyr_real/data/TrainDataset",
     "test_dataset_dir": "${WYSIWYR_DATA_ROOT}/wysiwyr_real/data/TestDataset",
     "train_n": 870,
     "val_n": 580,
     "split_seed": 2023
+  },
+  "main_medsam_training": {
+    "initialization": "official MedSAM ViT-B checkpoint",
+    "baseline_and_abloss_same_protocol": true,
+    "optimizer": "AdamW",
+    "lr": 0.0001,
+    "weight_decay": 0.01,
+    "batch_size": 1,
+    "max_epochs": 50,
+    "scheduler": "CosineAnnealingLR",
+    "amp": true,
+    "freeze_image_encoder": false,
+    "validate_every_epochs": 5,
+    "early_stopping_patience_checks": 4,
+    "seed": 2023,
+    "checkpoint_selection": "lowest validation loss",
+    "record_val_dice_at_selected_checkpoint": true,
+    "test_sets_not_used_for_selection_or_tuning": true
+  },
+  "coarse_proposer_g_psi": {
+    "architecture": "lightweight four-level U-Net (SmallUNet)",
+    "base_channel_width": 24,
+    "input_size": 320,
+    "training_split": "fixed 870-image training split only",
+    "initialization": "training from scratch",
+    "loss": "binary cross-entropy + soft Dice",
+    "optimizer": "AdamW",
+    "lr": 0.0003,
+    "weight_decay": 0.0001,
+    "batch_size": 8,
+    "max_epochs": 30,
+    "scheduler": "CosineAnnealingLR",
+    "early_stopping_patience": 6,
+    "checkpoint_selection": "highest validation Dice",
+    "threshold_candidates": [0.25, 0.35, 0.45, 0.55, 0.65],
+    "margin_candidates": [0.02, 0.05, 0.08, 0.10, 0.15],
+    "selection_rule": "max validation box IoU among configs with mean lesion coverage >= 0.95; fallback (no config reached 0.95) maximize 0.70*coverage + 0.30*box IoU",
+    "tau_coarse": 0.35,
+    "margin_fraction": 0.02,
+    "calibration_on": "predefined validation split only"
   },
   "training_prompt_protocol": {
     "source": "GT-derived bounding box with random outward jitter",
@@ -15,20 +54,10 @@
     "bbox_shift_at_1024": 20
   },
   "test_prompt_protocol": {
-    "gt_box_used": false,
-    "stage_1": "full-image box prompt -> coarse probability/mask",
-    "stage_2": "derive tight box from coarse predicted mask -> refined prediction",
-    "usr": "T prediction-derived box perturbations around coarse-mask box"
+    "gt_used": false,
+    "algorithm": "image -> prompt-free coarse proposer g_psi -> coarse probability map -> largest component -> validation-calibrated normalized-margin box -> MedSAM",
+    "same_prediction_derived_box_for_baseline_and_abloss": true
   },
-  "optimizer": "AdamW",
-  "scheduler": "CosineAnnealingLR",
-  "lr": 0.0001,
-  "weight_decay": 0.01,
-  "epochs_requested": 50,
-  "batch_size": 1,
-  "amp": true,
-  "freeze_image_encoder": false,
-  "note_on_recovered_hyperparameters": "The lost original code and undisclosed numeric main-training hyperparameters cannot be recovered from the manuscript. These are revision reproducibility settings and must be reported as such if used for new revision experiments.",
   "abloss": {
     "boundary_kernel_size": 7,
     "lambda_fp": 0.8,
@@ -42,14 +71,15 @@
   },
   "usr": {
     "num_passes": 8,
+    "reference_resolution": 1024,
     "jitter_px_ref": 10,
     "vote_threshold": 0.5,
     "inner_kernel_ref": 3,
     "outer_kernel_ref": 9,
-    "prune_prob_threshold": 0.5,
+    "prune_prob_threshold": 0.65,
     "prune_uncertainty_threshold": 0.35,
     "local_support_threshold": 0.8,
-    "repair_prob_threshold": 0.01,
+    "repair_prob_threshold": 0.70,
     "max_area_drop": 0.35,
     "max_area_rise": 0.25,
     "max_component_increase": 1,
@@ -59,11 +89,17 @@
     "max_hole_area_ref": 100,
     "eps": 1e-08,
     "seed": 2023,
-    "reference_resolution": 224,
     "scale_spatial_params": true,
     "aggregation_mode": "soft",
     "normalization_mode": "none",
-    "initial_prompt_mode": "full_image_box",
-    "binary_threshold_per_pass": 0.5
+    "binary_threshold_per_pass": 0.5,
+    "prompt_driven_models": "bounding-box perturbations",
+    "non_prompt_models": "deterministic TTA (identity, hflip, vflip, h+v) with inverse transform before aggregation"
+  },
+  "seig_checker": {
+    "rules_frozen": true,
+    "deterministic": true,
+    "mllm_frozen": true,
+    "mllm_deterministic_decoding": true
   }
 }

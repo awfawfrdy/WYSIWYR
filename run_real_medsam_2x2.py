@@ -16,7 +16,8 @@ The script can, in one run:
       - baseline loss = Dice + BCE
       - ABLoss        = Dice + BCE + ambiguity-aware FP/FN boundary penalties
 5) run leakage-free automatic test inference (NO GT box at test):
-      full-image box -> coarse prediction -> prediction-derived tight box -> refined mask
+      legacy: full-image box -> coarse mask -> prediction-derived tight box -> refined mask
+      (final manuscript: prompt-free coarse proposer, see stage4_promptfree.py)
 6) apply USR to both trained models to create the full 2x2 factorial:
       MedSAM / MedSAM+ABLoss / MedSAM+USR / MedSAM+ABLoss+USR
 7) save masks, probability maps, uncertainty maps, prompt diagnostics and latency;
@@ -26,9 +27,9 @@ Scientific/reproducibility notes
 ================================
 - Training prompts ARE GT-derived boxes because training annotations are supervised data.
   Test prompts NEVER use GT. This distinction is written to protocol.json.
-- The original manuscript disclosed "fixed random seed" but not the numeric value, and did
-  not disclose the main epoch count / learning rate / batch size. Therefore the defaults
-  below are REVISION REPRODUCIBILITY SETTINGS, not claimed recovery of the lost originals.
+- Main-training hyperparameters follow the final revised manuscript protocol: AdamW (lr 1e-4,
+  weight decay 0.01), batch size 1, up to 50 epochs, CosineAnnealingLR, AMP, validation every
+  5 epochs, early-stopping patience 4, seed 2023, checkpoint = lowest validation loss.
 - Public PraNet protocol has 900 Kvasir + 550 CVC-ClinicDB training images, and test counts
   Kvasir=100, CVC-ClinicDB=62, CVC-ColonDB=380, ETIS=196, CVC-300=60. If the manuscript
   currently states different counts, do not hide the mismatch; reconcile it in revision.
@@ -1197,10 +1198,7 @@ def protocol_record(args, train_dir: Path, test_dir: Path, train_n: int, val_n: 
         "batch_size": args.batch_size,
         "amp": bool(args.amp),
         "freeze_image_encoder": bool(args.freeze_image_encoder),
-        "note_on_recovered_hyperparameters": (
-            "The lost original code and undisclosed numeric main-training hyperparameters cannot be recovered from the manuscript. "
-            "These are revision reproducibility settings and must be reported as such if used for new revision experiments."
-        ),
+        "checkpoint_selection": "lowest validation loss",
         "abloss": asdict(core.ABLossConfig()),
         "usr": asdict(usr_cfg),
     }
@@ -1217,10 +1215,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--data-root", default="", help="Existing data root; default <root>/data")
     p.add_argument("--test-rar", default=DATA_ROOT + "/tumor_30.rar", help="Local RAR bundle that already contains TestDataset/*")
     p.add_argument("--medsam-checkpoint", default="", help="Existing medsam_vit_b.pth; otherwise auto-download with Google Drive/Hugging Face/Zenodo fallbacks")
-    p.add_argument("--seed", type=int, default=2023, help="Revision reproducibility seed (numeric original was not disclosed)")
-    p.add_argument("--epochs", type=int, default=50, help="Revision training cap; early stopping is enabled")
+    p.add_argument("--seed", type=int, default=2023, help="random seed (final protocol)")
+    p.add_argument("--epochs", type=int, default=50, help="maximum epochs (final protocol)")
     p.add_argument("--batch-size", type=int, default=1, help="Safe for 24GB 4090-class GPU at 1024x1024")
-    p.add_argument("--lr", type=float, default=1e-4, help="Official MedSAM one-GPU default; original paper main LR was undisclosed")
+    p.add_argument("--lr", type=float, default=1e-4, help="learning rate (final protocol)")
     p.add_argument("--weight-decay", type=float, default=0.01)
     p.add_argument("--num-workers", type=int, default=0)
     p.add_argument("--bbox-shift", type=int, default=20, help="GT-box outward jitter at 1024 during training")

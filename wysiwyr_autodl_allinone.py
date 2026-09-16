@@ -10,7 +10,7 @@ Contains:
 Design notes for the major revision:
 - ABLoss follows the manuscript equations and reported hyperparameters.
 - USR supports BOTH prompt-driven and non-prompt backbones explicitly.
-- For prompt-driven backbones, the default first coarse prompt is a full-image box,
+- For prompt-driven backbones, the legacy default first coarse prompt is a full-image box (superseded by the prompt-free proposer),
   avoiding ground-truth prompt leakage and circular "mask -> box -> mask" initialization.
 - For non-prompt backbones, box prompts are NOT fabricated. Instead, uncertainty is
   estimated by test-time transforms (TTA). This should be disclosed as a clarified /

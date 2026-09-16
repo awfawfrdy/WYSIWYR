@@ -35,7 +35,7 @@ class SEIGConfig:
     compactness_irregular: float = 1.80
     eps: float = 1e-8
 
-    # Reconstruction-only policy choices; easy to revise after reviewer feedback.
+    # Frozen SEIG and Checker-v3 rules; see configs/checker_rulebook_v3.json.
     allow_moderate_confidence_presence: bool = True
     cautious_boundary_at: str = "moderate"  # moderate/high => cautious
     include_numeric_evidence_in_prompt: bool = True
