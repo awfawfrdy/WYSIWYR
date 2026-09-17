@@ -11,12 +11,19 @@ the two artefacts that a reviewer usually asks to inspect without reading code:
 `configs/checker_rulebook_v3.json` (rule priority / negation policy / rewrite
 templates) is produced by `SEIG.checker_rulebook()` and is kept alongside these.
 
+Line-ending safety
+------------------
+The writers preserve the line ending already used by the file on disk (LF or CRLF)
+so that regenerating the specs never shows up as a spurious whitespace-only diff.
+
 Run from the repository root:
 
-    python tools/export_checker_spec.py
+    python tools/export_checker_spec.py            # rewrite configs/*.json
+    python tools/export_checker_spec.py --check    # verify only; non-zero exit on drift
 """
 from __future__ import annotations
 
+import argparse
 import ast
 import json
 import os
@@ -45,7 +52,28 @@ ROLES = {
 }
 
 
-def main() -> None:
+def detect_eol(path: str) -> str:
+    """Return the line ending already used by `path`, defaulting to LF."""
+    try:
+        with open(path, "rb") as f:
+            head = f.read(65536)
+    except OSError:
+        return "\n"
+    return "\r\n" if b"\r\n" in head else "\n"
+
+
+def render(obj) -> str:
+    """Canonical JSON text (LF-joined, trailing newline)."""
+    return json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+
+
+def normalise(text: str) -> str:
+    """Compare-irrelevant normalisation: line endings only."""
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
+def build():
+    """Parse seig.py and return {relative_path: (object, rendered_text)}."""
     src = open(SEIG_SRC, encoding="utf-8").read()
     tree = ast.parse(src)
 
@@ -85,16 +113,55 @@ def main() -> None:
         "templates": prompt,
     }
 
-    os.makedirs(OUT_DIR, exist_ok=True)
-    with open(os.path.join(OUT_DIR, "lexicons.json"), "w", encoding="utf-8") as f:
-        json.dump(lex_out, f, ensure_ascii=False, indent=2)
-        f.write("\n")
-    with open(os.path.join(OUT_DIR, "prompt_templates.json"), "w", encoding="utf-8") as f:
-        json.dump(prompt_out, f, ensure_ascii=False, indent=2)
-        f.write("\n")
+    return {
+        "lexicons.json": lex_out,
+        "prompt_templates.json": prompt_out,
+    }
 
-    print("wrote configs/lexicons.json         (%d lexicons)" % len(lexicons))
-    print("wrote configs/prompt_templates.json (%d template(s))" % len(prompt))
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Export or verify the frozen SEIG/Checker-v3 JSON specs.")
+    ap.add_argument("--check", action="store_true",
+                    help="do not write; verify that configs/*.json match the generator "
+                         "(line-ending-insensitive). Exits 1 on drift.")
+    args = ap.parse_args()
+
+    specs = build()
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+    drift = []
+    for name, obj in specs.items():
+        path = os.path.join(OUT_DIR, name)
+        text = render(obj)
+        eol = detect_eol(path)
+        payload = text.replace("\n", eol) if eol != "\n" else text
+
+        if args.check:
+            try:
+                with open(path, encoding="utf-8", newline="") as f:
+                    on_disk = f.read()
+            except OSError:
+                on_disk = None
+            if on_disk is None:
+                drift.append("%s: MISSING" % name)
+                print("check %-24s MISSING" % name)
+            elif normalise(on_disk) != normalise(payload):
+                drift.append("%s: OUT OF DATE" % name)
+                print("check %-24s OUT OF DATE" % name)
+            else:
+                same_bytes = on_disk == payload
+                print("check %-24s OK%s" % (name, "" if same_bytes else " (content identical, line endings differ)"))
+            continue
+
+        with open(path, "w", encoding="utf-8", newline="") as f:
+            f.write(payload)
+        n = len(obj.get("lexicons", obj.get("templates", {})))
+        print("wrote configs/%-22s (%d entries)" % (name, n))
+
+    if args.check:
+        if drift:
+            raise SystemExit("Checker spec drift detected: " + "; ".join(drift))
+        print("CHECKER SPEC CHECK PASSED")
 
 
 if __name__ == "__main__":

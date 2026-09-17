@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -11,12 +12,11 @@ from scipy.stats import (
     wilcoxon
 )
 
-ROOT = Path(
-    "/root/autodl-tmp/wysiwyr_real/stage5_calibrated/reviewer2_results"
-)
-OUT = Path(
-    "/root/autodl-tmp/wysiwyr_real/usr_failure_analysis_20260913"
-)
+# Data/artefact root. Set WYSIWYR_DATA_ROOT to the directory that contains
+# `wysiwyr_real` (e.g. export WYSIWYR_DATA_ROOT=/path/to/data_root).
+DATA_ROOT = Path(os.environ.get("WYSIWYR_DATA_ROOT", ".")).expanduser() / "wysiwyr_real"
+ROOT = DATA_ROOT / "stage5_calibrated" / "reviewer2_results"
+OUT = DATA_ROOT / "usr_failure_analysis_20260913"
 OUT.mkdir(parents=True, exist_ok=True)
 
 print("=" * 80)

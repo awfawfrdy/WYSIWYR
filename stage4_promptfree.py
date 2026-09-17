@@ -545,7 +545,8 @@ def summarize_proposal_test(ds: str, out_root: Path) -> None:
 def parser() -> argparse.ArgumentParser:
     p=argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     p.add_argument("--auto",action="store_true")
-    p.add_argument("--root",default="/root/autodl-tmp/wysiwyr_real")
+    p.add_argument("--root",default=str(Path(os.environ.get("WYSIWYR_DATA_ROOT","."))/"wysiwyr_real"),
+                   help="Data/artefact root; defaults to $WYSIWYR_DATA_ROOT/wysiwyr_real")
     p.add_argument("--seed",type=int,default=2023)
     p.add_argument("--proposal-size",type=int,default=320)
     p.add_argument("--proposal-epochs",type=int,default=30)

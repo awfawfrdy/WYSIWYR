@@ -1,0 +1,70 @@
+{
+  "_source": "WYSIWYR clinician evaluation protocol (revised manuscript). Fixed before evaluation; recorded here so the design is auditable independently of the rating data.",
+  "_note": "This file records the DESIGN ONLY. The analysis code that consumes the rating table lives in analysis/clinician_mixed_effects.R and analysis/clinician_agreement.py.",
+  "_data_location": "The original completed clinician-rating records were not located in the current reproducibility archive (searched on the analysis server and in the local project archives on 2026-09-17). See README 'Not released / data-only restrictions'.",
+  "_status": "frozen_before_evaluation",
+  "evaluation_design": {
+    "primary_report_pool": 542,
+    "primary_clinician_subset": 50,
+    "clinician_subset_composition": {
+      "CVC-ColonDB": 25,
+      "Tumor30": 25
+    },
+    "clinicians": 20,
+    "experienced_clinicians": 18,
+    "conditions": 3,
+    "evaluations_per_condition": 1000,
+    "total_evaluations": 3000,
+    "sampling": "source-stratified",
+    "case_set_fixed_before_evaluation": true,
+    "presentation_order_randomized": true,
+    "standardized_scoring_instructions": true,
+    "condition_identity_concealed": true
+  },
+  "response_scale": {
+    "type": "ordinal",
+    "points": 5,
+    "anchors": {"1": "poor", "3": "acceptable", "5": "excellent"},
+    "manuscript_reported_condition_means": {
+      "min": 3.34,
+      "max": 4.42,
+      "_note": "reported in the manuscript; recomputable only once the completed rating records are available"
+    }
+  },
+  "statistical_analysis": {
+    "primary_model": "cumulative-link mixed-effects model (ordinal response)",
+    "formula": "score ~ condition + (1 | clinician_id) + (1 | case_id)",
+    "implementation": "R ordinal::clmm (see analysis/clinician_mixed_effects.R); Python has no equivalent crossed-random-effects ordinal model",
+    "fixed_effects": ["report_condition"],
+    "random_intercepts": {
+      "clinician": "crossed",
+      "case": "crossed"
+    },
+    "reporting": ["odds ratio", "95% confidence interval", "p-value"],
+    "secondary_analyses": [
+      "experienced-only sensitivity analysis (18 experienced clinicians)",
+      "condition x experience exploratory interaction"
+    ]
+  },
+  "agreement_statistics": {
+    "implementation": "analysis/clinician_agreement.py (pure Python)",
+    "metrics": ["ICC", "Fleiss' kappa", "raw agreement"]
+  },
+  "data_access": {
+    "completed_rating_records_in_current_archive": false,
+    "evidence": "the analysis server and the local project archives were searched on 2026-09-17; no completed clinician rating table was located. The blinded rating sheets that do exist are empty templates (all rating columns blank).",
+    "consequence": "The manuscript's clinician OR / CI / p / ICC / kappa values cannot be independently recomputed from the current public archive.",
+    "policy": "Any future sharing of human-evaluation data must comply with the applicable ethical and privacy requirements.",
+    "expected_input_schema": {
+      "file": "<clinician_ratings>.csv",
+      "required_columns": {
+        "clinician_id": "anonymised clinician identifier",
+        "case_id": "anonymised case identifier",
+        "dataset": "source dataset (CVC-ColonDB | Tumor30)",
+        "condition": "report condition, 3 levels (identity concealed during rating)",
+        "score": "ordinal 1-5 quality rating",
+        "experience": "experienced | other (for the 18-clinician stratified analysis)"
+      }
+    }
+  }
+}

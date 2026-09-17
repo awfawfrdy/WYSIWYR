@@ -174,16 +174,28 @@ class ABLoss(nn.Module if torch is not None else object):
 
 @dataclass(frozen=True)
 class USRConfig:
-    # manuscript defaults
+    """USR configuration.
+
+    IMPORTANT — the field defaults below are the ORIGINAL (Stage-3/4) values and
+    are kept only for backwards compatibility with the early exploratory runs.
+    They are NOT the frozen values reported in the manuscript. The frozen
+    protocol is `configs/protocol.json["usr"]` (reference_resolution 1024,
+    prune_prob_threshold 0.65, prune_uncertainty_threshold 0.35,
+    local_support_threshold 0.80, repair_prob_threshold 0.70, seed 2023), and
+    every reported result was produced by build_usr_cfg() / candidate_usr_cfg()
+    in `stage5_calibrated.py`, which passes those values explicitly.
+    Do not rely on these class defaults to reproduce the manuscript.
+    """
+    # manuscript defaults (see configs/protocol.json -> "usr")
     num_passes: int = 8
     jitter_px_ref: int = 10
     vote_threshold: float = 0.5
     inner_kernel_ref: int = 3
     outer_kernel_ref: int = 9
-    prune_prob_threshold: float = 0.50
+    prune_prob_threshold: float = 0.50        # LEGACY default; frozen value = 0.65
     prune_uncertainty_threshold: float = 0.35
     local_support_threshold: float = 0.80
-    repair_prob_threshold: float = 0.01
+    repair_prob_threshold: float = 0.01       # LEGACY default; frozen value = 0.70
     max_area_drop: float = 0.35
     max_area_rise: float = 0.25
     max_component_increase: int = 1
@@ -192,14 +204,19 @@ class USRConfig:
     min_object_area_ref: int = 100
     max_hole_area_ref: int = 100
     eps: float = 1e-8
-    seed: int = 2026
+    seed: int = 2026                          # LEGACY default; frozen value = 2023
 
     # revision-oriented controls
-    reference_resolution: int = 224
+    reference_resolution: int = 224           # LEGACY default; frozen value = 1024
     scale_spatial_params: bool = True
     aggregation_mode: str = "soft"       # "soft" recommended; "binary_vote" legacy
     normalization_mode: str = "none"     # "none" recommended; "per_image_minmax" legacy
-    initial_prompt_mode: str = "full_image_box"  # prompt-driven model initialization
+    # LEGACY. Used ONLY by the `run_prompt()` fallback path when no coarse_mask is
+    # supplied. The frozen, reported test-time pathway never takes this path: it
+    # feeds a prompt-free proposer-derived box (see configs/protocol.json ->
+    # "test_prompt_protocol"), so a full-image-box bootstrap is NOT used for any
+    # reported result.
+    initial_prompt_mode: str = "full_image_box"
     binary_threshold_per_pass: float = 0.5
 
 

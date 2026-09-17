@@ -1,25 +1,47 @@
 # WYSIWYR — Python dependencies
-# Tested on the development server with Python 3.10/3.13 + CUDA.
+# Tested on the development server with Python 3.10 (CUDA build of PyTorch).
+#
+# This list is the MINIMAL set of third-party packages actually imported by the
+# released code (verified by scanning every `import` / `from ... import` in the
+# repository on 2026-09-17). Optional / model-specific dependencies are listed
+# separately at the bottom.
 
-# Scientific stack
+# --- Core scientific stack -------------------------------------------------
 numpy
 scipy
+pandas
 scikit-learn
 opencv-python
+Pillow                    # used by stage8_multimllm.py (PIL.Image)
+statsmodels               # used by stage6 and analysis/* (BH-FDR, logistic/OAT stats)
 
-# Deep learning
+# --- Deep learning ---------------------------------------------------------
 torch
 torchvision
 
-# Vision-language report generation backends (manuscript uses Qwen2.5-VL)
+# --- Vision-language report generation ------------------------------------
 transformers
 accelerate
 qwen-vl-utils
 
-# Utilities (dataset bootstrap helpers)
+# --- Dataset bootstrap helpers --------------------------------------------
 gdown
 
-# NOTE — external segmentation backbone is NOT vendored in this repository.
-# Install MedSAM separately to provide the `segment_anything` package:
+# ---------------------------------------------------------------------------
+# NOT vendored in this repository — install separately
+# ---------------------------------------------------------------------------
+# External segmentation backbone (MedSAM). The training / inference entry points
+# (`run_real_medsam_2x2.py`) expect the `segment_anything` package:
 #   git clone https://github.com/bowang-lab/MedSAM && pip install -e MedSAM
 # MedSAM ViT-B checkpoint: medsam_vit_b.pth (see the MedSAM repository).
+#
+# ---------------------------------------------------------------------------
+# Optional / model-specific (only needed for the corresponding backend)
+# ---------------------------------------------------------------------------
+# Cross-MLLM evaluation (`stage8_multimllm.py`) loads each backbone through
+# `transformers` with `trust_remote_code=True`. The upstream model repositories
+# are NOT redistributed here; obtain each checkpoint from its original provider:
+#   - Qwen2.5-VL-3B       : Qwen/Qwen2.5-VL-3B-Instruct      (uses qwen-vl-utils)
+#   - InternVL2.5-2B      : OpenGVLab/InternVL2_5-2B         (trust_remote_code)
+#   - MiniCPM-V-2.6       : openbmb/MiniCPM-V-2_6            (trust_remote_code)
+#   - HuatuoGPT-Vision-7B : FreedomIntelligence/HuatuoGPT-Vision-7B-Qwen2.5VL

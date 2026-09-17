@@ -246,7 +246,8 @@ def infer_dataset(ds,img_dir,mask_dir,proposer,prop_size,prompt_cfg,usr_cfg,sam_
 
 def parser():
     p=argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    p.add_argument('--root',default='/root/autodl-tmp/wysiwyr_real'); p.add_argument('--seed',type=int,default=2023)
+    p.add_argument('--root',default=str(Path(os.environ.get('WYSIWYR_DATA_ROOT','.'))/'wysiwyr_real'),
+                   help='Data/artefact root; defaults to $WYSIWYR_DATA_ROOT/wysiwyr_real'); p.add_argument('--seed',type=int,default=2023)
     p.add_argument('--amp',action=argparse.BooleanOptionalAction,default=True); p.add_argument('--datasets',default='')
     p.add_argument('--calibrate-only',action='store_true'); return p
 

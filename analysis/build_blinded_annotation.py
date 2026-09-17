@@ -1,11 +1,14 @@
 from pathlib import Path
+import os
 import pandas as pd
 import numpy as np
 import shutil
 import hashlib
 import html
 
-ROOT = Path("/root/autodl-tmp/wysiwyr_real")
+# Data/artefact root. Set WYSIWYR_DATA_ROOT to the directory that contains
+# `wysiwyr_real` (e.g. export WYSIWYR_DATA_ROOT=/path/to/data_root).
+ROOT = Path(os.environ.get("WYSIWYR_DATA_ROOT", ".")).expanduser() / "wysiwyr_real"
 DATA_ROOT = ROOT / "data" / "TestDataset"
 
 FAILURE_CSV = (

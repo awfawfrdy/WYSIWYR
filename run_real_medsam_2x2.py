@@ -99,6 +99,49 @@ except Exception as e:
 
 
 # ---------------------------------------------------------------------------
+# USR configuration source (audited & fixed 2026-09-17)
+# ---------------------------------------------------------------------------
+# The frozen manuscript USR values live in `configs/protocol.json -> "usr"`.
+# This runner loads them from that file BY DEFAULT so that the manuscript
+# reproduction pathway cannot silently inherit the legacy `USRConfig` class
+# defaults (reference_resolution 224 / prune_prob_threshold 0.50 /
+# repair_prob_threshold 0.01). Historically this call site passed only a few
+# fields, which produced the superseded `<root>/predictions` and
+# `<root>/reviewer2_results` artefacts. Pass `--legacy-usr-defaults` to restore
+# byte-for-byte the old behaviour (only needed to re-derive those superseded
+# artefacts). No historical artefact is created or modified by this change.
+DEFAULT_PROTOCOL = Path(__file__).resolve().parent / "configs" / "protocol.json"
+
+
+def build_usr_config(protocol_path: Path, seed: int, legacy: bool):
+    """Return (core.USRConfig, source_description)."""
+    if legacy:
+        return core.USRConfig(
+            num_passes=8,
+            aggregation_mode="soft",   # reviewer-oriented continuous probability aggregation
+            normalization_mode="none",  # avoid per-image min-max threshold reinterpretation
+            scale_spatial_params=True,  # normalize morphology/area params by resolution
+            seed=seed,
+        ), "LEGACY USRConfig class defaults (--legacy-usr-defaults) -> superseded artefacts"
+
+    data = json.loads(Path(protocol_path).read_text(encoding="utf-8"))
+    usr = data.get("usr")
+    if not isinstance(usr, dict):
+        raise SystemExit(
+            f"No 'usr' section in the protocol file: {protocol_path}\n"
+            "Pass --protocol <path/to/protocol.json> or --legacy-usr-defaults."
+        )
+    allowed = set(core.USRConfig.__dataclass_fields__)
+    kwargs = {k: v for k, v in usr.items() if k in allowed}
+    kwargs["seed"] = seed  # CLI seed stays authoritative (defaults to the frozen 2023)
+    unfilled = sorted(allowed - set(kwargs))
+    cfg = core.USRConfig(**kwargs)
+    src = (f"{protocol_path} -> 'usr' (frozen manuscript protocol); "
+           f"loaded={len(kwargs)} fields; class-default fallback for {unfilled or 'none'}")
+    return cfg, src
+
+
+# ---------------------------------------------------------------------------
 # Constants / public sources
 # ---------------------------------------------------------------------------
 MEDSAM_GIT = "https://github.com/bowang-lab/MedSAM.git"
@@ -1216,6 +1259,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--test-rar", default=DATA_ROOT + "/tumor_30.rar", help="Local RAR bundle that already contains TestDataset/*")
     p.add_argument("--medsam-checkpoint", default="", help="Existing medsam_vit_b.pth; otherwise auto-download with Google Drive/Hugging Face/Zenodo fallbacks")
     p.add_argument("--seed", type=int, default=2023, help="random seed (final protocol)")
+    p.add_argument("--protocol", default=str(DEFAULT_PROTOCOL),
+                   help="Frozen protocol JSON providing the USR parameters "
+                        "(default: <repo>/configs/protocol.json)")
+    p.add_argument("--legacy-usr-defaults", action="store_true",
+                   help="Use the original USRConfig class defaults (224/0.50/0.01) instead of the "
+                        "frozen protocol values. Only needed to re-derive the SUPERSEDED "
+                        "<root>/predictions and <root>/reviewer2_results artefacts; do NOT use it "
+                        "to reproduce the manuscript.")
     p.add_argument("--epochs", type=int, default=50, help="maximum epochs (final protocol)")
     p.add_argument("--batch-size", type=int, default=1, help="Safe for 24GB 4090-class GPU at 1024x1024")
     p.add_argument("--lr", type=float, default=1e-4, help="learning rate (final protocol)")
@@ -1297,13 +1348,18 @@ def main() -> None:
     else:
         log("[INFO] Tumor30 internal subset is intentionally excluded for now: local archive labeled/ has 435 pairs, not the manuscript's 162.")
 
-    usr_cfg = core.USRConfig(
-        num_passes=8,
-        aggregation_mode="soft",              # reviewer-oriented continuous probability aggregation
-        normalization_mode="none",            # avoid per-image min-max threshold reinterpretation
-        scale_spatial_params=True,             # normalize morphology/area params by resolution
+    usr_cfg, usr_src = build_usr_config(
+        protocol_path=Path(args.protocol),
         seed=args.seed,
+        legacy=bool(args.legacy_usr_defaults),
     )
+    log(f"[USR] configuration source: {usr_src}")
+    if not args.legacy_usr_defaults:
+        log("[USR] reference_resolution=%d prune_prob_threshold=%.2f "
+            "prune_uncertainty_threshold=%.2f repair_prob_threshold=%.2f num_passes=%d"
+            % (usr_cfg.reference_resolution, usr_cfg.prune_prob_threshold,
+               usr_cfg.prune_uncertainty_threshold, usr_cfg.repair_prob_threshold,
+               usr_cfg.num_passes))
     write_json(root / "protocol.json", protocol_record(args, train_dir, test_dir, len(train_pairs), len(val_pairs), usr_cfg))
 
     if args.prepare_only:
