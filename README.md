@@ -165,13 +165,15 @@ Add `--smoke` for a 1-case-per-dataset smoke run (Image-only / SEIG-only / Image
 mismatched SEIG); omit it for the full cross-MLLM evaluation.
 
 **Provenance.** The historical HuatuoGPT-Vision model-specific adapter that generated the
-manuscript Table-30 numbers was **not retained**. The adapter released here is provided as a
-**current reproducibility interface** only: it reuses the same Stage-8 image loading, SEIG
-evidence, structured prompt template, frozen Checker-v3 and output schema, and adds only the
+manuscript Table-30 numbers was **not retained**. The adapter released here is a **current
+protocol-compatible reproducibility interface** only: it reuses the same Stage-8 image loading,
+SEIG evidence, structured prompt template, frozen Checker-v3 and output schema, and adds only the
 Huatuo-specific loading/inference interface. It has been **smoke-tested** (model loads; image
 input is accepted; the Image-only and SEIG-conditioned conditions both produce valid text; output
 files follow the repository schema). It should **not** be interpreted as the archived code that
-originally produced the reported Table-30 values.
+originally produced the reported Table-30 values. See
+[Frozen generation length and HuatuoGPT-Vision provenance](#frozen-generation-length-and-huatuogpt-vision-provenance)
+for the `max_new_tokens` setting of each experiment and its provenance.
 
 ## Statistical analysis
 
@@ -393,25 +395,49 @@ read frozen artefacts; none re-trains or re-runs the MLLM.
 > `python analysis/clinician_agreement.py --smoke-test` and
 > `python score_human_validation.py --smoke-test`.
 
-### Frozen generation length (please read before quoting a number)
+### Frozen generation length and HuatuoGPT-Vision provenance
 
-Every reported report-generation experiment was produced with **`max_new_tokens = 384`,
-`do_sample = False`**. This is recorded in the frozen protocol files *and* in the per-case JSON
-of every generated report:
+All report-generation experiments used deterministic decoding with `do_sample = False`. The
+retained frozen artifacts for Stage 6, Stage 7, Stage 9, and the archived Stage-8 runs of
+Qwen2.5-VL-3B, InternVL2.5-2B, and MiniCPM-V-2.6 record `max_new_tokens = 384`.
 
-| Experiment | rows with a `decode` field | frozen `max_new_tokens` | evidence |
-|---|---|---|---|
-| Stage 6 — main end-to-end report generation | 3,990 | **384** | `stage6_seig_mllm_end2end/protocol_stage6.json` + all 3,990 per-case JSON `decode` |
-| Stage 7 — visual-vs-SEIG controls | 3,193 | **384** | `protocol_stage7.json` + per-case JSON |
-| Stage 8 — cross-MLLM (Qwen2.5-VL-3B / InternVL2.5-2B / MiniCPM-V-2.6) | 2,401 | **384** | `protocol_stage8.json` + per-case JSON |
-| Stage 9 — SEIG threshold sensitivity | 2,201 | **384** | `protocol_stage9.json` + per-case JSON |
-| Stage 8 smoke — HuatuoGPT-Vision-7B | — | **512** | `stage8_smoke/protocol_stage8.json` (`HUATUO_MAX_NEW_TOKENS = 512`) |
+HuatuoGPT-Vision is a model-specific exception. The manuscript reports `max_new_tokens = 512`
+for the HuatuoGPT-Vision backend. The historical HuatuoGPT-Vision model-specific adapter used to
+generate the manuscript Table-30 results was not retained. Therefore, this repository does not
+claim that the released Huatuo adapter is the archived implementation that originally generated
+those values. The released Huatuo backend is a current protocol-compatible reproducibility
+interface; it reuses the Stage-8 image loading, SEIG evidence, structured prompt template, frozen
+Checker-v3, and output schema, and uses `max_new_tokens = 512`.
 
-`512` appears **only** for the HuatuoGPT-Vision backbone, which needed a longer budget; the code
-default is 192 (`stage6`) / 384 (`stage7`–`stage9`). If the manuscript states a single generation
-length of 512 for the main report generation, that conflicts with the frozen artefacts and should
-be corrected to 384 (or scoped explicitly to the HuatuoGPT-Vision setting). Nothing in this
-repository was changed to match a different manuscript number.
+| Experiment | `max_new_tokens` | provenance |
+|---|---|---|
+| Stage 6 — main end-to-end report generation | 384 | retained frozen protocol/per-case artifacts |
+| Stage 7 — visual-vs-SEIG controls | 384 | retained frozen protocol/per-case artifacts |
+| Stage 8 — Qwen2.5-VL-3B / InternVL2.5-2B / MiniCPM-V-2.6 | 384 | retained Stage-8 artifacts |
+| Stage 9 — SEIG threshold sensitivity | 384 | retained frozen protocol/per-case artifacts |
+| HuatuoGPT-Vision released reproducibility interface | 512 | current model-specific interface; historical adapter not retained |
+
+Retained-evidence detail for the 384 rows — number of per-case records carrying a `decode` field:
+
+| Experiment | records with a `decode` field | source |
+|---|---|---|
+| Stage 6 | 3,990 | `stage6_seig_mllm_end2end/protocol_stage6.json` + all 3,990 per-case JSON `decode` |
+| Stage 7 | 3,193 | `stage7_seig_controls/protocol_stage7.json` + per-case JSON |
+| Stage 8 (the three archived backends) | 2,401 | `stage8_multimllm/protocol_stage8.json` + per-case JSON |
+| Stage 9 | 2,201 | `stage9_seig_threshold_sensitivity/protocol_stage9.json` + per-case JSON |
+
+CLI defaults are 192 (`stage6_seig_mllm_end2end.py`), 384 (`stage7`–`stage9`), with the Huatuo
+backend forced to 512.
+
+**Evidence status for the 512 setting.** The `512` value is recorded in the released interface
+(`stage8_multimllm.py::HUATUO_MAX_NEW_TOKENS = 512`) and in the 20-case Stage-8 smoke run on disk
+(`wysiwyr_real/stage8_smoke/protocol_stage8.json` plus its 20 per-case JSONs). **Neither is the
+archived Table-30 generation run**, and the archived Stage-8 output directory
+(`wysiwyr_real/stage8_multimllm/cases/`) contains only the Qwen / InternVL / MiniCPM backends. No
+retained protocol file, per-case artifact, or commit in this repository records the generation
+length of the historical HuatuoGPT-Vision Table-30 run. The `512` figure above is therefore the
+**manuscript-reported** setting and the setting used by the **current released interface**; it is
+not reproduced from an archived artifact, and no such claim is made here.
 
 ### 14. Expected artifact layout
 
@@ -567,9 +593,11 @@ why any particular record is absent.
 
 ## Reproducibility notes
 
-The HuatuoGPT-Vision cross-MLLM adapter is now included as a current reproducibility interface
-(see "Cross-MLLM evaluation"). The historical adapter used to generate the manuscript Table-30
-HuatuoGPT-Vision numbers was not retained and is not claimed to be reproduced here.
+The HuatuoGPT-Vision cross-MLLM adapter is included as a current protocol-compatible
+reproducibility interface — see "Cross-MLLM evaluation" for the interface disclosure and
+"Frozen generation length and HuatuoGPT-Vision provenance" for the `max_new_tokens` settings.
+The historical adapter used to generate the manuscript Table-30 HuatuoGPT-Vision numbers was not
+retained and is not claimed to be reproduced here.
 
 ## License
 
