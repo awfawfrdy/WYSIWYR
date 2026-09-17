@@ -193,6 +193,121 @@ segmentation-metric × downstream-metric combinations, not a full 3 × 3 grid.
 `analysis/reviewer2_r1_associations.py` recomputes these 18 tests with a 1,000-resample
 dataset-stratified bootstrap CI and reproduces the stored ρ values to `max |Δρ| = 9.0e-17`.
 
+### Recent-method comparison provenance
+
+**What this repository retains for the recent-method comparison: nothing.** An exhaustive search
+(`git grep` over the tracked files, plus a filesystem-wide search of the working tree and of the
+analysis server) found **no implementation, checkpoint reference, configuration, prediction, log or
+provenance record** for SAM2-UNet, SEPNet or MVSNet / "multi-view simulation" inside this
+repository. The only `SAM2` / `MVSNet` hits on the analysis server belong to unrelated third-party
+trees (MedSAM's own `third_party/MedSAM/README.md`; an official MVSNet multi-view-stereo clone used
+by a different project), not to this study.
+
+| Method | Result source | Training / checkpoint source | Training datasets | Possible overlap with the 798-case evaluation cohort | Evaluation protocol | Reproducibility status |
+|---|---|---|---|---|---|---|
+| SAM2-UNet | **NOT RETAINED** | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | not reproducible from this repository |
+| SEPNet | **NOT RETAINED** | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | not reproducible from this repository |
+| MVSNet / multi-view simulation | **NOT RETAINED** | UNKNOWN | UNKNOWN | UNKNOWN | UNKNOWN | not reproducible from this repository |
+
+Because no artifact is retained, **this repository provides no evidence for any level of comparison
+fairness** for these methods — not even that the evaluation cohort, decision threshold, metric
+implementation or case-level aggregation were unified. The wording tiers below are graded by what
+can be independently evidenced; only tiers backed by real artifacts should be used:
+
+* If a uniform evaluation cohort, threshold (0.5), metric implementation and case-level aggregation
+  can be evidenced, but **not** a uniform training protocol/budget:
+  *"The recent-method comparison should be interpreted as an evaluation-standardized comparison
+  rather than a controlled same-training-budget benchmark."*
+* If the evaluation protocol cannot be evidenced from retained artifacts either, the defensible
+  description is weaker: *"the recent-method numbers are reported in the manuscript; their training
+  and evaluation provenance is not retained in this repository and therefore cannot be independently
+  verified."*
+
+Unsupported by any retained artifact, and therefore not used anywhere in this repository:
+"strictly fair benchmark", "identical training setup", "same training data", "same training budget".
+No comparison-table number was read, recomputed or modified while writing this section.
+
+### Segmentation significance family — paired Wilcoxon + joint BH-FDR
+
+`analysis/recompute_table8_fdr.py` independently recomputes the paired-Wilcoxon family behind the
+segmentation significance table from the **frozen per-case metrics only**
+(`stage5_calibrated/reviewer2_results/<dataset>/case_segmentation_metrics.csv`), using the same test
+as the frozen runner — `scipy.stats.wilcoxon(second, first, alternative="two-sided",
+zero_method="wilcox", method="auto")`, with an all-zero difference vector mapped to `p = 1.0` — and
+applies **one joint Benjamini–Hochberg correction per declared family scope** (never per cell,
+never back-solved from significance stars).
+
+```bash
+export WYSIWYR_DATA_ROOT=/path/to/data_root
+python analysis/recompute_table8_fdr.py \
+  --data-root "$WYSIWYR_DATA_ROOT/wysiwyr_real" \
+  --out-dir reproducibility_outputs
+```
+
+OUTPUT: `reproducibility_outputs/table8_wilcoxon_bh_fdr.csv` (≥10 significant digits),
+`table8_wilcoxon_bh_fdr.json` (family summaries + frozen cross-check), and
+`table8_reproduction_check.csv` (recomputed vs frozen raw p, per cell).
+
+**Family scopes.** The frozen runner emits 5 datasets × 7 metrics × 5 prespecified comparisons
+(175 cells). The manuscript's segmentation table uses five metrics (Dice, IoU, Boundary Dice,
+HD95, ASSD); because the manuscript source is not part of this repository, the family is **declared
+explicitly** rather than inferred, and every emitted row carries its `family` label:
+
+| `family` | scope | tests |
+|---|---|---|
+| `table8` | 5 metrics × 5 datasets × 5 comparisons | 125 |
+| `table8_main` | 5 metrics × 5 datasets × 1 main comparison | 25 |
+| `table8_per_dataset:<ds>` | BH computed within each dataset | 25 each |
+| `all7` | every metric/cohort/comparison the frozen runner emitted | 175 |
+
+**Result of the joint BH correction (`table8`, 125 tests):** 62 of 125 raw p-values are < 0.05;
+after BH, **52 remain significant** (37 at q < 0.01, 26 at q < 0.001) and **10 lose significance**
+at q < 0.05. The 10 cells are listed in `table8_wilcoxon_bh_fdr.csv` (`raw_sig=True`, `bh_sig=False`).
+
+Self-test: `python analysis/recompute_table8_fdr.py --smoke-test` (verifies the in-repo BH
+implementation against `statsmodels.multipletests(fdr_bh)` on 200 random p-values, checks the
+zero-difference rule and a hand-workable paired case).
+
+**Frozen cross-check.** The recomputed raw p matches the frozen `paired_tests.csv` on 173 of 175
+cells to < 1e−12; two cells on CVC-ColonDB / recall (the largest cohort, n = 380) differ by
+9.1e−07 and 3.2e−07 absolute (≤ 0.17 % relative). The cause is input rounding — the per-case metrics
+are stored as rounded decimal text, so the tie correction inside `wilcoxon(..., method="auto")`
+shifts in the 6th–7th digit. No cell lies near the 0.05 boundary, so no raw-significance or BH
+conclusion changes. This deviation is reported rather than hidden, and the frozen artifacts were
+not modified.
+
+### Clinician model specification
+
+Exact specification of the released clinician analysis code (`analysis/clinician_mixed_effects.R`,
+`ordinal::clmm`, `Hess = TRUE`). This describes **what the code implements**; it is not a claim
+about the manuscript's numbers, which cannot be recomputed because the completed rating records are
+not in this archive (see [Not released / records not in the current archive](#not-released--records-not-in-the-current-archive)).
+
+| Element | Specification |
+|---|---|
+| Model | cumulative-link mixed-effects model (ordinal response) |
+| Link function | `link = "logit"` → cumulative logit (proportional-odds) |
+| Ordered outcome | `score` recoded with `as.ordered(score)` (1–5) |
+| Fixed effects | `condition` (3 report conditions), coded via `factor(condition)` |
+| Random effects | crossed random **intercepts** — `(1 \| clinician_id)` and `(1 \| case_id)` |
+| Random slopes | **none** (intercepts only) |
+| Reference level | R's default first level of `factor(condition)` after level sorting (explicit `factor()` is the only coding applied; no `relevel()`/contrast override) |
+| OR computation | `exp(coef)` of the latent-scale log-odds coefficients |
+| 95 % CI | Wald interval on the log-odds scale: `exp(estimate ± 1.96 × Std. Error)` |
+| p-value | Wald z-test from `coef(summary(model))` (`z value`, `Pr(>\|z\|)`) |
+| Experienced-only sensitivity | refit on `experience == "experienced"` (18 clinicians), same formula |
+| Interaction analysis | exploratory `score ~ condition * experience + (1 \| clinician_id) + (1 \| case_id)` |
+| Random-effect reporting | `ordinal::VarCorr(model)` → `primary_random_effects.csv` |
+| Output columns | `term`, `log_odds`, `odds_ratio`, `or_ci_low`, `or_ci_high`, `z`, `p_value` |
+| Inter-rater agreement | `analysis/clinician_agreement.py`: ICC(2,1), ICC(2,k), ICC(3,1) (two-way random effects, absolute agreement; complete-case balanced design), general Fleiss' kappa, raw agreement |
+| Input schema | long format: `clinician_id, case_id, dataset, condition, score, experience` |
+
+**Verification status of this code:** written to the documented schema and syntax-checked; the
+synthetic self-test `python analysis/clinician_agreement.py --smoke-test` passes. The R script has
+**not** been executed against real data (`Rscript` is not installed in the release environment and
+the completed rating records are not in the archive). No manuscript statistic is hardcoded anywhere
+in either script.
+
 ## Environment
 
 ```bash
@@ -387,6 +502,7 @@ read frozen artefacts; none re-trains or re-runs the MLLM.
 | Clinician inter-rater agreement (ICC / Fleiss' kappa / raw agreement) | `analysis/clinician_agreement.py` | same rating table (long format: subject, rater, category) | `clinician_agreement.json`; self-test: `python analysis/clinician_agreement.py --smoke-test` |
 | Checker-v3 validation metrics + bootstrap CI + Cohen's kappa | `score_human_validation.py` | blinded sheet with `human_status` filled + `checker_v3_human_validation_KEY_DO_NOT_SHOW_ANNOTATOR.csv` | accuracy, macro-F1 (with 95 % bootstrap CI), per-class P/R/F1, confusion matrix, Cohen's kappa, raw pre-adjudication agreement; self-test: `python score_human_validation.py --smoke-test` |
 | Runtime analysis | from `stage5_calibrated/predictions/<ds>/latency.csv` and the per-case `generation_latency_s.json` fields | latency CSV / JSON | aggregated runtime tables |
+| Segmentation significance family (paired Wilcoxon + one joint BH-FDR per declared family) | `python analysis/recompute_table8_fdr.py --data-root $W --out-dir reproducibility_outputs` | `stage5_calibrated/reviewer2_results/<ds>/case_segmentation_metrics.csv` (frozen per-case metrics) | `reproducibility_outputs/table8_wilcoxon_bh_fdr.csv` / `.json`, `table8_reproduction_check.csv` |
 | SEIG spec regeneration | `python tools/export_checker_spec.py` | `seig.py` | `configs/lexicons.json`, `configs/prompt_templates.json` |
 
 > The scripts under `analysis/` accept optional `--data-root` / `--out-dir` overrides and fall back
@@ -474,7 +590,7 @@ See [Reproducibility tiers](#reproducibility-tiers),
 
 | Tier | What | Status |
 |---|---|---|
-| **A. Fully reproducible from public datasets** | SEIG construction rules, lexicons, prompt template, Checker-v3 rule engine and its idempotence test, SEIG threshold sensitivity (symbolic part), 2×2 / association *statistics* given masks | **Yes** — code + frozen configs are in this repository |
+| **A. Reproducible from public datasets alone** | SEIG construction rules, lexicons, prompt template, Checker-v3 rule engine and its idempotence test, SEIG threshold sensitivity (symbolic part), 2×2 / association *statistics* given masks | **Yes** — code + frozen configs are in this repository. This tier covers the rule engine and the statistics only; it does **not** cover the human-evaluation results (see tier D). |
 | **B. Reproducible given model weights** | MedSAM baseline/ABLoss training, prompt-free proposer training, fully automatic inference, USR inference, report generation, cross-MLLM evaluation | **Yes, if** you obtain the official MedSAM ViT-B checkpoint and the MLLM checkpoints yourself |
 | **C. Analysis reproducible from released frozen artifacts** | USR semantic pixel audit, USR mask re-derivation, 18 case-level associations, end-to-end propagation tables, Checker-v3 validation scoring | **Yes, given the author-provided artefacts** (`stage5_calibrated/`, `usr_failure_analysis_20260913/`, `stage6_*`). These artefacts are **not** redistributed with the repository — request them from the authors, or regenerate them via tiers A/B. |
 | **D. Code complete, records not in archive** | Clinician evaluation (completed rating records not located); Checker-v3 human validation (completed 400-claim labels not located); Tumour-30 / internal subset (not distributed — institutional privacy and ethical restrictions) | **Code: yes** (analysis scripts released and self-testable). **Numbers: no** — the completed human-evaluation records are not part of the current archive, so those manuscript values cannot be independently recomputed from it. |

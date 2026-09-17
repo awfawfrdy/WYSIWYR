@@ -1,0 +1,94 @@
+{
+  "generator": "analysis/recompute_table8_fdr.py",
+  "input_root": "/root/autodl-tmp/wysiwyr_real/stage5_calibrated/reviewer2_results",
+  "cohort_case_counts": {
+    "CVC-300": 60,
+    "CVC-ClinicDB": 62,
+    "CVC-ColonDB": 380,
+    "ETIS-LaribPolypDB": 196,
+    "Kvasir": 100
+  },
+  "statistical_test": "scipy.stats.wilcoxon(second, first, alternative='two-sided', zero_method='wilcox', method='auto')",
+  "zero_handling": "zero_method='wilcox'; all-zero difference vector -> p = 1.0",
+  "correction": "Benjamini-Hochberg (fdr_bh), applied once per family scope",
+  "bh_implementation": "in-repo pure-Python bh_fdr() (cross-checked against statsmodels when available)",
+  "families": {
+    "all7": {
+      "n_tests": 175,
+      "n_raw_p_lt_0.05": 95,
+      "n_bh_q_lt_0.05": 86,
+      "n_bh_q_lt_0.01": 62,
+      "n_bh_q_lt_0.001": 44,
+      "n_lost_significance_after_bh": 9
+    },
+    "table8": {
+      "n_tests": 125,
+      "n_raw_p_lt_0.05": 62,
+      "n_bh_q_lt_0.05": 52,
+      "n_bh_q_lt_0.01": 37,
+      "n_bh_q_lt_0.001": 26,
+      "n_lost_significance_after_bh": 10
+    },
+    "table8_main": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 11,
+      "n_bh_q_lt_0.05": 9,
+      "n_bh_q_lt_0.01": 6,
+      "n_bh_q_lt_0.001": 4,
+      "n_lost_significance_after_bh": 2
+    },
+    "table8_per_dataset:CVC-300": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 17,
+      "n_bh_q_lt_0.05": 15,
+      "n_bh_q_lt_0.01": 6,
+      "n_bh_q_lt_0.001": 0,
+      "n_lost_significance_after_bh": 2
+    },
+    "table8_per_dataset:CVC-ClinicDB": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 1,
+      "n_bh_q_lt_0.05": 0,
+      "n_bh_q_lt_0.01": 0,
+      "n_bh_q_lt_0.001": 0,
+      "n_lost_significance_after_bh": 1
+    },
+    "table8_per_dataset:CVC-ColonDB": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 13,
+      "n_bh_q_lt_0.05": 11,
+      "n_bh_q_lt_0.01": 5,
+      "n_bh_q_lt_0.001": 2,
+      "n_lost_significance_after_bh": 2
+    },
+    "table8_per_dataset:ETIS-LaribPolypDB": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 17,
+      "n_bh_q_lt_0.05": 15,
+      "n_bh_q_lt_0.01": 14,
+      "n_bh_q_lt_0.001": 13,
+      "n_lost_significance_after_bh": 2
+    },
+    "table8_per_dataset:Kvasir": {
+      "n_tests": 25,
+      "n_raw_p_lt_0.05": 14,
+      "n_bh_q_lt_0.05": 13,
+      "n_bh_q_lt_0.01": 12,
+      "n_bh_q_lt_0.001": 10,
+      "n_lost_significance_after_bh": 1
+    }
+  },
+  "frozen_cross_check": {
+    "cells_compared": 175,
+    "cells_missing_on_either_side": 0,
+    "max_abs_p_diff": 9.085712387782701e-07,
+    "n_cells_with_p_diff_gt_1e-9": 2,
+    "n_cells_with_n_mismatch": 0,
+    "status": "DEVIATION"
+  },
+  "notes": [
+    "Raw p-values are recomputed from frozen per-case metrics only; the frozen paired_tests.csv is used solely for verification and is never modified.",
+    "The manuscript source is not part of this repository, so the family scope is declared explicitly in the 'family' column rather than inferred from the manuscript table layout.",
+    "No significance star is reverse-engineered into a p-value."
+  ]
+}
